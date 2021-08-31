@@ -1,5 +1,5 @@
 # Ignition tracks
-Ignition (racing game, 1997) racetrack files format (.COL, .TEX, .MSH, .PLC)
+Ignition (racing game, 1997) racetrack files format (.COL, .TEX, .MSH, .PLC). https://en.wikipedia.org/wiki/Ignition_(video_game)
 
 ```c
 //file .COL
@@ -20,7 +20,7 @@ struct Textures {
 //file .MSH
 struct Mesh {
   struct Poly {
-    int32 unknown;
+    int32 unknown1;
     int32 v[3];  //indexes
     int32 uv[3][2];  //uvs for each vertex
     int16 unknown2;  //unknown1/2 - effects?? (19:78 => clouds; 17:303 => rolling balls)
@@ -40,6 +40,8 @@ struct Places {
   int32 position[3];  //x,-y(??),z
 }
 ```
+
+![Screenshot](/screenshots/ignition_canada_editor.png?raw=true)
 
 # Disclaimer:
 It is just a draft with Unity3D example not a finished project. The goal of this project is to experiment, research, and educate on the topics of game development and game resource management. All information was obtained via reverse engineering of legally purchased copies of the game.
