@@ -1,10 +1,8 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 namespace IgnitionTrack {
-	public static class IgnitionMeshes {
-		/*
+    public static class IgnitionMeshes {
+        /*
 		 * //file .MSH
 		 * struct Mesh {
 		 *	struct Poly {
@@ -30,77 +28,98 @@ namespace IgnitionTrack {
 		 * 
 		 */
 
-		//private readonly List<GameObject> meshes = new List<GameObject>();
+        //private readonly List<GameObject> meshes = new List<GameObject>();
+        public struct Poly {
+            public int[] indexes;
+            public Vector2[] uvs;
+            public int texture;
 
-		public static void CreateMeshes(IgnitionStream streamMeshes, IgnitionStream streamPlaces, Material material, Transform parent) {
-			int cnt = streamPlaces.ReadInt32(); //meshes count
+            public Poly(IgnitionStream stream) {
+                _ = stream.ReadInt32();
+                indexes = new int[3] { stream.ReadInt32(), stream.ReadInt32(), stream.ReadInt32() };
+                uvs = new Vector2[3] {
+                    stream.ReadVector2(),
+                    stream.ReadVector2(),
+                    stream.ReadVector2(),
+                };
+                _ = stream.ReadInt16();
+                texture = stream.ReadInt16();
+            }
 
-			for (int meshIndex = 0; meshIndex < cnt; meshIndex++) {
-				var mesh = LoadMesh(streamMeshes, meshIndex);
+            public Vector2 GetUV(Vector2 pos) => new Vector2(pos.y / 65535f + texture / 4, pos.x / 65535f + texture % 4) * 0.25f;
 
-				_ = streamPlaces.ReadInt32(); //unknown
-				_ = streamPlaces.ReadInt32(); //unknown
+            public Vector2 GetUV(int index) => GetUV(uvs[index]);
+        }
 
-				Vec3 position = new Vec3(streamPlaces);
-				position.y = -position.y;
+        public static void CreateMeshes(IgnitionStream streamMeshes, IgnitionStream streamPlaces, Material material, Transform parent) {
+            int cnt = streamPlaces.ReadInt32(); //meshes count
 
-				mesh.transform.parent = parent;
-				mesh.GetComponent<MeshRenderer>().material = material;
-				mesh.transform.localScale = Vector3.one;
-				mesh.transform.localPosition = position.GetVector3();
-				//meshes.Add(mesh);
-			}
-		}
+            for (int meshIndex = 0; meshIndex < cnt; meshIndex++) {
+                var mesh = LoadMesh(streamMeshes, meshIndex);
 
-		private static GameObject LoadMesh(IgnitionStream stream, int meshIndex) {
-			int verticesCount = stream.ReadInt32();
-			int polyCount = stream.ReadInt32();
+                _ = streamPlaces.ReadInt32(); //unknown
+                _ = streamPlaces.ReadInt32(); //unknown
 
-			Vec3[] v = new Vec3[verticesCount];
-			for (int i = 0; i < verticesCount; i++) {
-				v[i] = new Vec3(stream);
-			}
+                Vector3 position = streamPlaces.ReadVector3();
+                position.y = -position.y;
 
-			Poly[] p = new Poly[polyCount];
-			for (int i = 0; i < polyCount; i++) {
-				p[i] = new Poly(stream);
-			}
+                mesh.transform.parent = parent;
+                mesh.GetComponent<MeshRenderer>().material = material;
+                mesh.transform.localScale = Vector3.one;
+                mesh.transform.localPosition = position;
+                //meshes.Add(mesh);
+            }
+        }
 
-			var obj = new GameObject(string.Format("obj{0}", meshIndex), typeof(MeshFilter), typeof(MeshRenderer));
-			var mf = obj.GetComponent<MeshFilter>();
+        private static GameObject LoadMesh(IgnitionStream stream, int meshIndex) {
+            int verticesCount = stream.ReadInt32();
+            int polyCount = stream.ReadInt32();
 
-			var mesh = new Mesh();
+            Vector3[] v = new Vector3[verticesCount];
+            for (int i = 0; i < verticesCount; i++) {
+                v[i] = stream.ReadVector3();
+            }
 
-			var mv = new Vector3[polyCount * 3];
-			var muv = new Vector2[polyCount * 3];
-			var mt = new int[polyCount * 3];
+            Poly[] p = new Poly[polyCount];
+            for (int i = 0; i < polyCount; i++) {
+                p[i] = new Poly(stream);
+            }
 
-			for (int i = 0; i < polyCount; i++) {
-				mv[i * 3 + 0] = v[p[i].vertices.x].GetVector3();
-				mv[i * 3 + 1] = v[p[i].vertices.y].GetVector3();
-				mv[i * 3 + 2] = v[p[i].vertices.z].GetVector3();
+            var obj = new GameObject(string.Format("obj{0}", meshIndex), typeof(MeshFilter), typeof(MeshRenderer));
+            var mf = obj.GetComponent<MeshFilter>();
 
-				muv[i * 3 + 0] = p[i].GetUV(0);
-				muv[i * 3 + 1] = p[i].GetUV(1);
-				muv[i * 3 + 2] = p[i].GetUV(2);
+            var mesh = new Mesh();
 
-				mt[i * 3 + 0] = i * 3 + 0;
-				mt[i * 3 + 1] = i * 3 + 2;
-				mt[i * 3 + 2] = i * 3 + 1;
-			}
+            var mv = new Vector3[polyCount * 3];
+            var muv = new Vector2[polyCount * 3];
+            var mt = new int[polyCount * 3];
 
-			mesh.vertices = mv;
-			mesh.triangles = mt;
-			mesh.uv = muv;
+            for (int i = 0; i < polyCount; i++) {
+                mv[i * 3 + 0] = v[p[i].indexes[0]];
+                mv[i * 3 + 1] = v[p[i].indexes[1]];
+                mv[i * 3 + 2] = v[p[i].indexes[2]];
 
-			mesh.RecalculateNormals();
-			mesh.RecalculateBounds();
+                muv[i * 3 + 0] = p[i].GetUV(0);
+                muv[i * 3 + 1] = p[i].GetUV(1);
+                muv[i * 3 + 2] = p[i].GetUV(2);
 
-			mf.mesh = mesh;
+                mt[i * 3 + 0] = i * 3 + 0;
+                mt[i * 3 + 1] = i * 3 + 2;
+                mt[i * 3 + 2] = i * 3 + 1;
+            }
 
-			return obj;
-		}
+            mesh.vertices = mv;
+            mesh.triangles = mt;
+            mesh.uv = muv;
 
-	}
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+
+            mf.mesh = mesh;
+
+            return obj;
+        }
+
+    }
 
 }
